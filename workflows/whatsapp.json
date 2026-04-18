@@ -18,7 +18,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "const body = $json.body ?? $json;\nconst messageText = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.text?.body ?? body?.text ?? body?.message ?? '';\nreturn [{\n  json: {\n    task: messageText || 'No task provided',\n    source: 'whatsapp',\n    raw: body\n  }\n}];"
+				"jsCode": "const body = $json.body ?? $json;\nconst messageText = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.text?.body ?? body?.text ?? body?.message ?? '';\nconst runId = body?.run_id ?? body?.runId ?? `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nreturn [{\n  json: {\n    run_id: runId,\n    task: messageText || 'No task provided',\n    source: 'whatsapp',\n    raw: body\n  }\n}];"
 			},
 			"id": "wa_normalize",
 			"name": "Normalize Input",
@@ -35,7 +35,7 @@
 				"url": "https://multiagent-system-4eze.onrender.com/agents/planner",
 				"sendBody": true,
 				"specifyBody": "json",
-				"jsonBody": "={{ { task: $json.task } }}",
+				"jsonBody": "={{ { task: $json.task, run_id: $json.run_id } }}",
 				"options": {}
 			},
 			"id": "wa_planner",
@@ -53,7 +53,7 @@
 				"url": "https://multiagent-system-4eze.onrender.com/agents/developer",
 				"sendBody": true,
 				"specifyBody": "json",
-				"jsonBody": "={{ { plan: $json.plan } }}",
+				"jsonBody": "={{ { plan: $json.plan, run_id: $json.run_id } }}",
 				"options": {}
 			},
 			"id": "wa_developer",
@@ -71,7 +71,7 @@
 				"url": "https://multiagent-system-4eze.onrender.com/agents/reviewer",
 				"sendBody": true,
 				"specifyBody": "json",
-				"jsonBody": "={{ { code: $json.code } }}",
+				"jsonBody": "={{ { code: $json.code, run_id: $json.run_id } }}",
 				"options": {}
 			},
 			"id": "wa_reviewer",
@@ -109,7 +109,7 @@
 				"url": "https://multiagent-system-4eze.onrender.com/agents/deployer",
 				"sendBody": true,
 				"specifyBody": "json",
-				"jsonBody": "={{ { review: $json.review } }}",
+				"jsonBody": "={{ { review: $json.review, run_id: $json.run_id } }}",
 				"options": {}
 			},
 			"id": "wa_deployer",
@@ -123,7 +123,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "return [{\n  json: {\n    status: 'approved',\n    summary: 'Pipeline executed successfully',\n    deployment: $json.deployment,\n    deploymentStatus: $json.status\n  }\n}];"
+				"jsCode": "return [{\n  json: {\n    run_id: $json.run_id,\n    status: 'approved',\n    summary: 'Pipeline executed successfully',\n    deployment: $json.deployment,\n    deploymentStatus: $json.status\n  }\n}];"
 			},
 			"id": "wa_success",
 			"name": "Format Success",
@@ -136,7 +136,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "return [{\n  json: {\n    status: 'changes_required',\n    summary: 'Reviewer did not approve the generated output',\n    review: $json.review,\n    approved: $json.approved\n  }\n}];"
+				"jsCode": "return [{\n  json: {\n    run_id: $json.run_id,\n    status: 'changes_required',\n    summary: 'Reviewer did not approve the generated output',\n    review: $json.review,\n    approved: $json.approved\n  }\n}];"
 			},
 			"id": "wa_reject",
 			"name": "Format Rejection",

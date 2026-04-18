@@ -18,7 +18,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "const body = $json.body ?? $json;\nreturn [{ json: { task: body.task ?? body.text ?? '' } }];"
+				"jsCode": "const body = $json.body ?? $json;\nconst runId = body.run_id ?? body.runId ?? `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nreturn [{ json: { task: body.task ?? body.text ?? '', run_id: runId } }];"
 			},
 			"id": "planner_normalize",
 			"name": "Normalize Task",
@@ -35,7 +35,7 @@
 				"url": "https://multiagent-system-4eze.onrender.com/agents/planner",
 				"sendBody": true,
 				"specifyBody": "json",
-				"jsonBody": "={{ { task: $json.task } }}",
+				"jsonBody": "={{ { task: $json.task, run_id: $json.run_id } }}",
 				"options": {}
 			},
 			"id": "planner_call",

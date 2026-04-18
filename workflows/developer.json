@@ -18,7 +18,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "const body = $json.body ?? $json;\nreturn [{ json: { plan: body.plan ?? body } }];"
+				"jsCode": "const body = $json.body ?? $json;\nconst runId = body.run_id ?? body.runId ?? body.plan?.run_id ?? body.plan?.runId ?? `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nreturn [{ json: { plan: body.plan ?? body, run_id: runId } }];"
 			},
 			"id": "drd_normalize",
 			"name": "Normalize Plan",
@@ -35,7 +35,7 @@
 				"url": "https://multiagent-system-4eze.onrender.com/agents/developer",
 				"sendBody": true,
 				"specifyBody": "json",
-				"jsonBody": "={{ { plan: $json.plan } }}",
+				"jsonBody": "={{ { plan: $json.plan, run_id: $json.run_id } }}",
 				"options": {}
 			},
 			"id": "drd_developer",
@@ -53,7 +53,7 @@
 				"url": "https://multiagent-system-4eze.onrender.com/agents/reviewer",
 				"sendBody": true,
 				"specifyBody": "json",
-				"jsonBody": "={{ { code: $json.code } }}",
+				"jsonBody": "={{ { code: $json.code, run_id: $json.run_id } }}",
 				"options": {}
 			},
 			"id": "drd_reviewer",
@@ -91,7 +91,7 @@
 				"url": "https://multiagent-system-4eze.onrender.com/agents/deployer",
 				"sendBody": true,
 				"specifyBody": "json",
-				"jsonBody": "={{ { review: $json.review } }}",
+				"jsonBody": "={{ { review: $json.review, run_id: $json.run_id } }}",
 				"options": {}
 			},
 			"id": "drd_deployer",
@@ -105,7 +105,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "return [{\n  json: {\n    status: 'approved',\n    deploymentStatus: $json.status,\n    deployment: $json.deployment\n  }\n}];"
+				"jsCode": "return [{\n  json: {\n    run_id: $json.run_id,\n    status: 'approved',\n    deploymentStatus: $json.status,\n    deployment: $json.deployment\n  }\n}];"
 			},
 			"id": "drd_success",
 			"name": "Format Success",
@@ -118,7 +118,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "return [{\n  json: {\n    status: 'changes_required',\n    approved: $json.approved,\n    review: $json.review\n  }\n}];"
+				"jsCode": "return [{\n  json: {\n    run_id: $json.run_id,\n    status: 'changes_required',\n    approved: $json.approved,\n    review: $json.review\n  }\n}];"
 			},
 			"id": "drd_reject",
 			"name": "Format Rejection",

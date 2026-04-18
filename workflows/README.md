@@ -7,17 +7,21 @@ This folder contains starter workflows for your multi-agent orchestration.
 - `whatsapp.json`: End-to-end intake and orchestration (Planner -> Developer -> Reviewer -> Deployer)
 - `planner.json`: Single-purpose workflow to run Planner from a webhook
 - `developer.json`: Developer + Reviewer + conditional Deployer chain
-- `mcp.json`: MCP bridge placeholder workflow (returns 501 until connected)
+- `mcp.json`: MCP bridge workflow that routes `planner`, `full_pipeline`, and `ping` actions
+- `mcp-ping.json`: Minimal ping workflow used by the MCP bridge for health checks
 
-## Required n8n Environment Variable
+## run_id Propagation
 
-Set this variable in Render for the n8n service:
+Workflows propagate a `run_id` across all agent calls.
 
-- `MULTIAGENT_API_BASE_URL`
-  - Local example (only for local n8n): `http://localhost:8000`
-  - Public example (required for Render-hosted n8n): `https://your-multiagent-api.onrender.com`
+- If a request includes `run_id`, it is reused.
+- If it is missing, workflows generate one and forward it.
+- The same `run_id` is sent to Planner, Developer, Reviewer, and Deployer.
 
-> Important: when n8n runs on Render, `localhost` points to the n8n container itself, not to your multiagent API service.
+Use this to correlate executions with backend state endpoints:
+
+- `GET /runs/{run_id}`
+- `GET /runs`
 
 ## Import Steps
 
@@ -75,7 +79,7 @@ Set this variable in Render for the n8n service:
 
 - These workflows are intentionally minimal for fast bootstrap.
 - Add retries, error handling, and auth headers before production rollout.
-- Connect `mcp.json` to your MCP server/API when ready.
+- Ensure your backend deployment is updated so agent responses include `run_id`.
 
 ## Smoke Tests
 
