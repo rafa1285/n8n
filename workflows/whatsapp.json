@@ -1,0 +1,278 @@
+{
+	"name": "WhatsApp Intake Orchestrator",
+	"nodes": [
+		{
+			"parameters": {
+				"httpMethod": "POST",
+				"path": "whatsapp-intake",
+				"responseMode": "responseNode"
+			},
+			"id": "wa_webhook",
+			"name": "WhatsApp Webhook",
+			"type": "n8n-nodes-base.webhook",
+			"typeVersion": 2,
+			"position": [
+				220,
+				320
+			]
+		},
+		{
+			"parameters": {
+				"jsCode": "const body = $json.body ?? $json;\nconst messageText = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.text?.body ?? body?.text ?? body?.message ?? '';\nreturn [{\n  json: {\n    task: messageText || 'No task provided',\n    source: 'whatsapp',\n    raw: body\n  }\n}];"
+			},
+			"id": "wa_normalize",
+			"name": "Normalize Input",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				460,
+				320
+			]
+		},
+		{
+			"parameters": {
+				"method": "POST",
+				"url": "https://multiagent-system-4eze.onrender.com/agents/planner",
+				"sendBody": true,
+				"specifyBody": "json",
+				"jsonBody": "={{ { task: $json.task } }}",
+				"options": {}
+			},
+			"id": "wa_planner",
+			"name": "Call Planner",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.2,
+			"position": [
+				700,
+				320
+			]
+		},
+		{
+			"parameters": {
+				"method": "POST",
+				"url": "https://multiagent-system-4eze.onrender.com/agents/developer",
+				"sendBody": true,
+				"specifyBody": "json",
+				"jsonBody": "={{ { plan: $json.plan } }}",
+				"options": {}
+			},
+			"id": "wa_developer",
+			"name": "Call Developer",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.2,
+			"position": [
+				940,
+				320
+			]
+		},
+		{
+			"parameters": {
+				"method": "POST",
+				"url": "https://multiagent-system-4eze.onrender.com/agents/reviewer",
+				"sendBody": true,
+				"specifyBody": "json",
+				"jsonBody": "={{ { code: $json.code } }}",
+				"options": {}
+			},
+			"id": "wa_reviewer",
+			"name": "Call Reviewer",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.2,
+			"position": [
+				1180,
+				320
+			]
+		},
+		{
+			"parameters": {
+				"conditions": {
+					"boolean": [
+						{
+							"value1": "={{ $json.approved }}",
+							"value2": true
+						}
+					]
+				}
+			},
+			"id": "wa_gate",
+			"name": "Approved?",
+			"type": "n8n-nodes-base.if",
+			"typeVersion": 2,
+			"position": [
+				1420,
+				320
+			]
+		},
+		{
+			"parameters": {
+				"method": "POST",
+				"url": "https://multiagent-system-4eze.onrender.com/agents/deployer",
+				"sendBody": true,
+				"specifyBody": "json",
+				"jsonBody": "={{ { review: $json.review } }}",
+				"options": {}
+			},
+			"id": "wa_deployer",
+			"name": "Call Deployer",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.2,
+			"position": [
+				1660,
+				220
+			]
+		},
+		{
+			"parameters": {
+				"jsCode": "return [{\n  json: {\n    status: 'approved',\n    summary: 'Pipeline executed successfully',\n    deployment: $json.deployment,\n    deploymentStatus: $json.status\n  }\n}];"
+			},
+			"id": "wa_success",
+			"name": "Format Success",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				1900,
+				220
+			]
+		},
+		{
+			"parameters": {
+				"jsCode": "return [{\n  json: {\n    status: 'changes_required',\n    summary: 'Reviewer did not approve the generated output',\n    review: $json.review,\n    approved: $json.approved\n  }\n}];"
+			},
+			"id": "wa_reject",
+			"name": "Format Rejection",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				1660,
+				420
+			]
+		},
+		{
+			"parameters": {
+				"respondWith": "json",
+				"responseBody": "={{ $json }}",
+				"options": {
+					"responseCode": 200
+				}
+			},
+			"id": "wa_response",
+			"name": "Respond",
+			"type": "n8n-nodes-base.respondToWebhook",
+			"typeVersion": 1.3,
+			"position": [
+				2140,
+				320
+			]
+		}
+	],
+	"connections": {
+		"WhatsApp Webhook": {
+			"main": [
+				[
+					{
+						"node": "Normalize Input",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Normalize Input": {
+			"main": [
+				[
+					{
+						"node": "Call Planner",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Call Planner": {
+			"main": [
+				[
+					{
+						"node": "Call Developer",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Call Developer": {
+			"main": [
+				[
+					{
+						"node": "Call Reviewer",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Call Reviewer": {
+			"main": [
+				[
+					{
+						"node": "Approved?",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Approved?": {
+			"main": [
+				[
+					{
+						"node": "Call Deployer",
+						"type": "main",
+						"index": 0
+					}
+				],
+				[
+					{
+						"node": "Format Rejection",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Call Deployer": {
+			"main": [
+				[
+					{
+						"node": "Format Success",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Format Success": {
+			"main": [
+				[
+					{
+						"node": "Respond",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Format Rejection": {
+			"main": [
+				[
+					{
+						"node": "Respond",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		}
+	},
+	"settings": {},
+	"pinData": {}
+}

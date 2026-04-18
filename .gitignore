@@ -1,0 +1,41 @@
+# =============================================================================
+# .gitignore – infra-n8n-render
+# =============================================================================
+
+# --- Secrets & local configuration ---
+.env
+.env.*
+!.env.example
+
+# --- n8n local data directory ---
+.n8n/
+
+# --- Node.js ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- OS artifacts ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Editor / IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- Temporary files ---
+tmp/
+temp/
+*.tmp
+*.log
+
+# --- Docker ---
+.dockerignore
+
+# --- Render local overrides ---
+render-local.yaml

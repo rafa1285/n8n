@@ -1,0 +1,83 @@
+﻿{
+  "name": "MCP Bridge",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mcp-bridge",
+        "responseMode": "responseNode"
+      },
+      "id": "mcp_webhook",
+      "name": "MCP Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [180, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $json ?? {};\nconst body = (root.body && typeof root.body === 'object') ? root.body : {};\nconst nested = (body.body && typeof body.body === 'object') ? body.body : {};\nconst input = nested && Object.keys(nested).length ? nested : body;\nconst payload = input.payload ?? input;\nconst requestedAction = String(root.action ?? body.action ?? nested.action ?? payload.action ?? root.query?.action ?? 'ping').toLowerCase().trim();\nconst task = root.task ?? body.task ?? nested.task ?? payload.task ?? root.text ?? body.text ?? nested.text ?? payload.text ?? '';\n\nconst headers = root.headers ?? body.headers ?? {};\nconst host = headers.host ?? headers.Host ?? '';\nconst protocol = headers['x-forwarded-proto'] ?? headers['X-Forwarded-Proto'] ?? 'https';\n\nlet resolvedAction = requestedAction;\nlet targetPath = 'mcp-ping';\nlet forwardBody = { action: 'ping', requestedAction };\n\nif (requestedAction === 'planner') {\n  targetPath = 'planner-entry';\n  forwardBody = { task: task || 'No task provided' };\n} else if (requestedAction === 'full_pipeline') {\n  targetPath = 'whatsapp-intake';\n  forwardBody = { text: task || 'No task provided' };\n} else if (requestedAction === 'ping') {\n  targetPath = 'mcp-ping';\n  forwardBody = { action: 'ping', requestedAction };\n} else {\n  resolvedAction = 'unsupported';\n  targetPath = 'mcp-ping';\n  forwardBody = { action: 'ping', requestedAction };\n}\n\nconst targetUrl = host ? `${protocol}://${host}/webhook/${targetPath}` : `https://invalid-host/webhook/${targetPath}`;\n\nreturn [{\n  json: {\n    requestedAction,\n    resolvedAction,\n    targetPath,\n    targetUrl,\n    forwardBody\n  }\n}];"
+      },
+      "id": "mcp_normalize",
+      "name": "Normalize and Route",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.targetUrl }}",
+        "responseFormat": "string",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.forwardBody }}",
+        "options": {}
+      },
+      "id": "mcp_dispatch",
+      "name": "Dispatch to Target Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    status: 'ok',\n    result: $json,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "mcp_format",
+      "name": "Format Bridge Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [940, 320]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "mcp_response",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.3,
+      "position": [1180, 320]
+    }
+  ],
+  "connections": {
+    "MCP Webhook": {
+      "main": [[{ "node": "Normalize and Route", "type": "main", "index": 0 }]]
+    },
+    "Normalize and Route": {
+      "main": [[{ "node": "Dispatch to Target Workflow", "type": "main", "index": 0 }]]
+    },
+    "Dispatch to Target Workflow": {
+      "main": [[{ "node": "Format Bridge Response", "type": "main", "index": 0 }]]
+    },
+    "Format Bridge Response": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {},
+  "pinData": {}
+}

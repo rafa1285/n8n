@@ -52,6 +52,11 @@ services:
           name: n8n-db
           property: user
 
+      # Public base URL of the multiagent API consumed by workflows.
+      # Replace with your service URL in Render dashboard if needed.
+      - key: MULTIAGENT_API_BASE_URL
+        value: https://your-multiagent-api.onrender.com
+
 databases:
   - name: n8n-db
     plan: free

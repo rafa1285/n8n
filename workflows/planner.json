@@ -1,0 +1,106 @@
+{
+	"name": "Planner Agent Entry",
+	"nodes": [
+		{
+			"parameters": {
+				"httpMethod": "POST",
+				"path": "planner-entry",
+				"responseMode": "responseNode"
+			},
+			"id": "planner_webhook",
+			"name": "Planner Webhook",
+			"type": "n8n-nodes-base.webhook",
+			"typeVersion": 2,
+			"position": [
+				260,
+				280
+			]
+		},
+		{
+			"parameters": {
+				"jsCode": "const body = $json.body ?? $json;\nreturn [{ json: { task: body.task ?? body.text ?? '' } }];"
+			},
+			"id": "planner_normalize",
+			"name": "Normalize Task",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				500,
+				280
+			]
+		},
+		{
+			"parameters": {
+				"method": "POST",
+				"url": "https://multiagent-system-4eze.onrender.com/agents/planner",
+				"sendBody": true,
+				"specifyBody": "json",
+				"jsonBody": "={{ { task: $json.task } }}",
+				"options": {}
+			},
+			"id": "planner_call",
+			"name": "Call Planner API",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.2,
+			"position": [
+				740,
+				280
+			]
+		},
+		{
+			"parameters": {
+				"respondWith": "json",
+				"responseBody": "={{ $json }}",
+				"options": {
+					"responseCode": 200
+				}
+			},
+			"id": "planner_respond",
+			"name": "Respond",
+			"type": "n8n-nodes-base.respondToWebhook",
+			"typeVersion": 1.3,
+			"position": [
+				980,
+				280
+			]
+		}
+	],
+	"connections": {
+		"Planner Webhook": {
+			"main": [
+				[
+					{
+						"node": "Normalize Task",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Normalize Task": {
+			"main": [
+				[
+					{
+						"node": "Call Planner API",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Call Planner API": {
+			"main": [
+				[
+					{
+						"node": "Respond",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		}
+	},
+	"settings": {},
+	"pinData": {}
+}
+
