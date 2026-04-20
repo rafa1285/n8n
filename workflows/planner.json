@@ -18,7 +18,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "const body = $json.body ?? $json;\nconst runId = body.run_id ?? body.runId ?? `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nreturn [{ json: { task: body.task ?? body.text ?? '', run_id: runId } }];"
+				"jsCode": "const body = $json.body ?? $json;\nconst runId = body.run_id ?? body.runId ?? `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nconst multiagentApiKey = String(body.multiagent_api_key ?? body.api_key ?? '').trim();\nreturn [{ json: { task: body.task ?? body.text ?? '', run_id: runId, multiagent_api_key: multiagentApiKey } }];"
 			},
 			"id": "planner_normalize",
 			"name": "Normalize Task",
@@ -38,7 +38,7 @@
 					"parameters": [
 						{
 							"name": "X-API-Key",
-							"value": "={{ $env.MULTIAGENT_API_KEY }}"
+							"value": "={{ $('Normalize Task').first().json.multiagent_api_key }}"
 						}
 					]
 				},

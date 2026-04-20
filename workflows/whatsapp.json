@@ -18,7 +18,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "const body = $json.body ?? $json;\nconst messageText = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.text?.body ?? body?.text ?? body?.message ?? '';\nconst runId = body?.run_id ?? body?.runId ?? `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nconst jiraIssueKey = String(body?.jira_issue_key ?? body?.issue_key ?? '').trim();\nconst jiraBaseUrl = String(body?.jira_base_url ?? body?.jira?.base_url ?? '').trim();\nconst jiraEmail = String(body?.jira_email ?? body?.jira?.email ?? '').trim();\nconst jiraApiToken = String(body?.jira_api_token ?? body?.jira?.api_token ?? '').trim();\n\nfunction inferIntent(text) {\n  const t = String(text || '').toLowerCase();\n  if (!t) {\n    return { name: 'unknown', confidence: 0.0, entities: [], reasoning: 'empty_input' };\n  }\n\n  const rules = [\n    { name: 'generate_backend', confidence: 0.92, terms: ['backend', 'api', 'endpoint', 'controller', 'service'] },\n    { name: 'deploy_backend', confidence: 0.9, terms: ['deploy', 'desplegar', 'release', 'produccion'] },\n    { name: 'review_backend', confidence: 0.88, terms: ['review', 'revisar', 'auditar', 'quality', 'qa'] },\n    { name: 'planner_help', confidence: 0.8, terms: ['plan', 'planning', 'roadmap', 'organiza'] }\n  ];\n\n  for (const rule of rules) {\n    if (rule.terms.some((term) => t.includes(term))) {\n      return {\n        name: rule.name,\n        confidence: rule.confidence,\n        entities: [{ key: 'matched_terms', value: rule.terms.filter((term) => t.includes(term)) }],\n        reasoning: 'keyword_match'\n      };\n    }\n  }\n\n  return { name: 'freeform_request', confidence: 0.65, entities: [], reasoning: 'fallback' };\n}\n\nconst explicitIntent = body?.intent;\nconst intent = (explicitIntent && typeof explicitIntent === 'object')\n  ? {\n      name: String(explicitIntent.name ?? 'unknown'),\n      confidence: Number(explicitIntent.confidence ?? 0),\n      entities: Array.isArray(explicitIntent.entities) ? explicitIntent.entities : [],\n      reasoning: String(explicitIntent.reasoning ?? 'provided')\n    }\n  : inferIntent(messageText);\n\nconst structuredTask = `[${intent.name}] ${messageText || 'No task provided'}`;\n\nreturn [{\n  json: {\n    run_id: runId,\n    task: structuredTask,\n    source: 'whatsapp',\n    intent,\n    jira_issue_key: jiraIssueKey,\n    jira_base_url: jiraBaseUrl,\n    jira_email: jiraEmail,\n    jira_api_token: jiraApiToken,\n    raw: body\n  }\n}];"
+				"jsCode": "const body = $json.body ?? $json;\nconst messageText = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.text?.body ?? body?.text ?? body?.message ?? '';\nconst runId = body?.run_id ?? body?.runId ?? `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nconst jiraIssueKey = String(body?.jira_issue_key ?? body?.issue_key ?? '').trim();\nconst jiraBaseUrl = String(body?.jira_base_url ?? body?.jira?.base_url ?? '').trim();\nconst jiraEmail = String(body?.jira_email ?? body?.jira?.email ?? '').trim();\nconst jiraApiToken = String(body?.jira_api_token ?? body?.jira?.api_token ?? '').trim();\nconst multiagentApiKey = String(body?.multiagent_api_key ?? body?.api_key ?? '').trim();\n\nfunction inferIntent(text) {\n  const t = String(text || '').toLowerCase();\n  if (!t) {\n    return { name: 'unknown', confidence: 0.0, entities: [], reasoning: 'empty_input' };\n  }\n\n  const rules = [\n    { name: 'generate_backend', confidence: 0.92, terms: ['backend', 'api', 'endpoint', 'controller', 'service'] },\n    { name: 'deploy_backend', confidence: 0.9, terms: ['deploy', 'desplegar', 'release', 'produccion'] },\n    { name: 'review_backend', confidence: 0.88, terms: ['review', 'revisar', 'auditar', 'quality', 'qa'] },\n    { name: 'planner_help', confidence: 0.8, terms: ['plan', 'planning', 'roadmap', 'organiza'] }\n  ];\n\n  for (const rule of rules) {\n    if (rule.terms.some((term) => t.includes(term))) {\n      return {\n        name: rule.name,\n        confidence: rule.confidence,\n        entities: [{ key: 'matched_terms', value: rule.terms.filter((term) => t.includes(term)) }],\n        reasoning: 'keyword_match'\n      };\n    }\n  }\n\n  return { name: 'freeform_request', confidence: 0.65, entities: [], reasoning: 'fallback' };\n}\n\nconst explicitIntent = body?.intent;\nconst intent = (explicitIntent && typeof explicitIntent === 'object')\n  ? {\n      name: String(explicitIntent.name ?? 'unknown'),\n      confidence: Number(explicitIntent.confidence ?? 0),\n      entities: Array.isArray(explicitIntent.entities) ? explicitIntent.entities : [],\n      reasoning: String(explicitIntent.reasoning ?? 'provided')\n    }\n  : inferIntent(messageText);\n\nconst structuredTask = `[${intent.name}] ${messageText || 'No task provided'}`;\n\nreturn [{\n  json: {\n    run_id: runId,\n    task: structuredTask,\n    source: 'whatsapp',\n    intent,\n    multiagent_api_key: multiagentApiKey,\n    jira_issue_key: jiraIssueKey,\n    jira_base_url: jiraBaseUrl,\n    jira_email: jiraEmail,\n    jira_api_token: jiraApiToken,\n    raw: body\n  }\n}];"
 			},
 			"id": "wa_normalize",
 			"name": "Normalize Input",
@@ -38,7 +38,7 @@
 					"parameters": [
 						{
 							"name": "X-API-Key",
-							"value": "={{ $env.MULTIAGENT_API_KEY }}"
+							"value": "={{ $('Normalize Input').first().json.multiagent_api_key }}"
 						}
 					]
 				},
@@ -65,7 +65,7 @@
 					"parameters": [
 						{
 							"name": "X-API-Key",
-							"value": "={{ $env.MULTIAGENT_API_KEY }}"
+							"value": "={{ $('Normalize Input').first().json.multiagent_api_key }}"
 						}
 					]
 				},
@@ -92,7 +92,7 @@
 					"parameters": [
 						{
 							"name": "X-API-Key",
-							"value": "={{ $env.MULTIAGENT_API_KEY }}"
+							"value": "={{ $('Normalize Input').first().json.multiagent_api_key }}"
 						}
 					]
 				},
@@ -112,22 +112,28 @@
 		},
 		{
 			"parameters": {
-				"conditions": {
-					"boolean": [
-						{
-							"value1": "={{ $json.approved }}",
-							"value2": true
-						}
-					]
-				}
+				"jsCode": "const approved = $json.approved === true || String($json.approved).toLowerCase() === 'true';\nreturn approved ? [{ json: $json }] : [];"
 			},
 			"id": "wa_gate",
-			"name": "Approved?",
-			"type": "n8n-nodes-base.if",
+			"name": "Filter Approved",
+			"type": "n8n-nodes-base.code",
 			"typeVersion": 2,
 			"position": [
 				1420,
-				320
+				220
+			]
+		},
+		{
+			"parameters": {
+				"jsCode": "const approved = $json.approved === true || String($json.approved).toLowerCase() === 'true';\nreturn approved ? [] : [{ json: $json }];"
+			},
+			"id": "wa_gate_reject",
+			"name": "Filter Rejection",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				1420,
+				420
 			]
 		},
 		{
@@ -139,7 +145,7 @@
 					"parameters": [
 						{
 							"name": "X-API-Key",
-							"value": "={{ $env.MULTIAGENT_API_KEY }}"
+							"value": "={{ $('Normalize Input').first().json.multiagent_api_key }}"
 						}
 					]
 				},
@@ -186,10 +192,10 @@
 		{
 			"parameters": {
 				"conditions": {
-					"boolean": [
+					"string": [
 						{
-							"value1": "={{ !!$('Normalize Input').first().json.jira_issue_key }}",
-							"value2": true
+							"value1": "={{ $('Normalize Input').first().json.jira_issue_key ? '1' : '0' }}",
+							"value2": "1"
 						}
 					]
 				}
@@ -216,6 +222,7 @@
 			"name": "Link Run in Jira (Success)",
 			"type": "n8n-nodes-base.httpRequest",
 			"typeVersion": 4.2,
+			"onError": "continueRegularOutput",
 			"position": [
 				2140,
 				160
@@ -237,10 +244,10 @@
 		{
 			"parameters": {
 				"conditions": {
-					"boolean": [
+					"string": [
 						{
-							"value1": "={{ !!$('Normalize Input').first().json.jira_issue_key }}",
-							"value2": true
+							"value1": "={{ $('Normalize Input').first().json.jira_issue_key ? '1' : '0' }}",
+							"value2": "1"
 						}
 					]
 				}
@@ -267,6 +274,7 @@
 			"name": "Link Run in Jira (Rejection)",
 			"type": "n8n-nodes-base.httpRequest",
 			"typeVersion": 4.2,
+			"onError": "continueRegularOutput",
 			"position": [
 				2140,
 				500
@@ -352,14 +360,19 @@
 			"main": [
 				[
 					{
-						"node": "Approved?",
+						"node": "Filter Approved",
+						"type": "main",
+						"index": 0
+					},
+					{
+						"node": "Filter Rejection",
 						"type": "main",
 						"index": 0
 					}
 				]
 			]
 		},
-		"Approved?": {
+		"Filter Approved": {
 			"main": [
 				[
 					{
@@ -367,7 +380,11 @@
 						"type": "main",
 						"index": 0
 					}
-				],
+				]
+			]
+		},
+		"Filter Rejection": {
+			"main": [
 				[
 					{
 						"node": "Format Rejection",

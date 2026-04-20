@@ -18,7 +18,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "const body = $json.body ?? $json;\nconst runId = body.run_id ?? body.runId ?? body.plan?.run_id ?? body.plan?.runId ?? `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nreturn [{ json: { plan: body.plan ?? body, run_id: runId } }];"
+				"jsCode": "const body = $json.body ?? $json;\nconst runId = body.run_id ?? body.runId ?? body.plan?.run_id ?? body.plan?.runId ?? `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nconst multiagentApiKey = String(body.multiagent_api_key ?? body.api_key ?? '').trim();\nreturn [{ json: { plan: body.plan ?? body, run_id: runId, multiagent_api_key: multiagentApiKey } }];"
 			},
 			"id": "drd_normalize",
 			"name": "Normalize Plan",
@@ -38,7 +38,7 @@
 					"parameters": [
 						{
 							"name": "X-API-Key",
-							"value": "={{ $env.MULTIAGENT_API_KEY }}"
+							"value": "={{ $('Normalize Plan').first().json.multiagent_api_key }}"
 						}
 					]
 				},
@@ -65,7 +65,7 @@
 					"parameters": [
 						{
 							"name": "X-API-Key",
-							"value": "={{ $env.MULTIAGENT_API_KEY }}"
+							"value": "={{ $('Normalize Plan').first().json.multiagent_api_key }}"
 						}
 					]
 				},
@@ -85,22 +85,28 @@
 		},
 		{
 			"parameters": {
-				"conditions": {
-					"boolean": [
-						{
-							"value1": "={{ $json.approved }}",
-							"value2": true
-						}
-					]
-				}
+				"jsCode": "const approved = $json.approved === true || String($json.approved).toLowerCase() === 'true';\nreturn approved ? [{ json: $json }] : [];"
 			},
 			"id": "drd_gate",
-			"name": "Approved?",
-			"type": "n8n-nodes-base.if",
+			"name": "Filter Approved",
+			"type": "n8n-nodes-base.code",
 			"typeVersion": 2,
 			"position": [
 				1180,
-				320
+				220
+			]
+		},
+		{
+			"parameters": {
+				"jsCode": "const approved = $json.approved === true || String($json.approved).toLowerCase() === 'true';\nreturn approved ? [] : [{ json: $json }];"
+			},
+			"id": "drd_gate_reject",
+			"name": "Filter Rejection",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				1180,
+				420
 			]
 		},
 		{
@@ -112,7 +118,7 @@
 					"parameters": [
 						{
 							"name": "X-API-Key",
-							"value": "={{ $env.MULTIAGENT_API_KEY }}"
+							"value": "={{ $('Normalize Plan').first().json.multiagent_api_key }}"
 						}
 					]
 				},
@@ -212,14 +218,19 @@
 			"main": [
 				[
 					{
-						"node": "Approved?",
+						"node": "Filter Approved",
+						"type": "main",
+						"index": 0
+					},
+					{
+						"node": "Filter Rejection",
 						"type": "main",
 						"index": 0
 					}
 				]
 			]
 		},
-		"Approved?": {
+		"Filter Approved": {
 			"main": [
 				[
 					{
@@ -227,7 +238,11 @@
 						"type": "main",
 						"index": 0
 					}
-				],
+				]
+			]
+		},
+		"Filter Rejection": {
+			"main": [
 				[
 					{
 						"node": "Format Rejection",
