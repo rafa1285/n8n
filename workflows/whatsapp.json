@@ -18,7 +18,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "const body = $json.body ?? $json;\nconst messageText = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.text?.body ?? body?.text ?? body?.message ?? '';\nconst runId = body?.run_id ?? body?.runId ?? `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nreturn [{\n  json: {\n    run_id: runId,\n    task: messageText || 'No task provided',\n    source: 'whatsapp',\n    raw: body\n  }\n}];"
+				"jsCode": "const body = $json.body ?? $json;\nconst messageText = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.text?.body ?? body?.text ?? body?.message ?? '';\nconst runId = body?.run_id ?? body?.runId ?? `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nconst jiraIssueKey = String(body?.jira_issue_key ?? body?.issue_key ?? '').trim();\nconst jiraBaseUrl = String(body?.jira_base_url ?? body?.jira?.base_url ?? '').trim();\nconst jiraEmail = String(body?.jira_email ?? body?.jira?.email ?? '').trim();\nconst jiraApiToken = String(body?.jira_api_token ?? body?.jira?.api_token ?? '').trim();\n\nfunction inferIntent(text) {\n  const t = String(text || '').toLowerCase();\n  if (!t) {\n    return { name: 'unknown', confidence: 0.0, entities: [], reasoning: 'empty_input' };\n  }\n\n  const rules = [\n    { name: 'generate_backend', confidence: 0.92, terms: ['backend', 'api', 'endpoint', 'controller', 'service'] },\n    { name: 'deploy_backend', confidence: 0.9, terms: ['deploy', 'desplegar', 'release', 'produccion'] },\n    { name: 'review_backend', confidence: 0.88, terms: ['review', 'revisar', 'auditar', 'quality', 'qa'] },\n    { name: 'planner_help', confidence: 0.8, terms: ['plan', 'planning', 'roadmap', 'organiza'] }\n  ];\n\n  for (const rule of rules) {\n    if (rule.terms.some((term) => t.includes(term))) {\n      return {\n        name: rule.name,\n        confidence: rule.confidence,\n        entities: [{ key: 'matched_terms', value: rule.terms.filter((term) => t.includes(term)) }],\n        reasoning: 'keyword_match'\n      };\n    }\n  }\n\n  return { name: 'freeform_request', confidence: 0.65, entities: [], reasoning: 'fallback' };\n}\n\nconst explicitIntent = body?.intent;\nconst intent = (explicitIntent && typeof explicitIntent === 'object')\n  ? {\n      name: String(explicitIntent.name ?? 'unknown'),\n      confidence: Number(explicitIntent.confidence ?? 0),\n      entities: Array.isArray(explicitIntent.entities) ? explicitIntent.entities : [],\n      reasoning: String(explicitIntent.reasoning ?? 'provided')\n    }\n  : inferIntent(messageText);\n\nconst structuredTask = `[${intent.name}] ${messageText || 'No task provided'}`;\n\nreturn [{\n  json: {\n    run_id: runId,\n    task: structuredTask,\n    source: 'whatsapp',\n    intent,\n    jira_issue_key: jiraIssueKey,\n    jira_base_url: jiraBaseUrl,\n    jira_email: jiraEmail,\n    jira_api_token: jiraApiToken,\n    raw: body\n  }\n}];"
 			},
 			"id": "wa_normalize",
 			"name": "Normalize Input",
@@ -123,7 +123,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "return [{\n  json: {\n    run_id: $json.run_id,\n    status: 'approved',\n    summary: 'Pipeline executed successfully',\n    deployment: $json.deployment,\n    deploymentStatus: $json.status\n  }\n}];"
+				"jsCode": "return [{\n  json: {\n    run_id: $json.run_id,\n    status: 'approved',\n    summary: 'Pipeline executed successfully',\n    intent: $('Normalize Input').first().json.intent,\n    deployment: $json.deployment,\n    deploymentStatus: $json.status\n  }\n}];"
 			},
 			"id": "wa_success",
 			"name": "Format Success",
@@ -136,7 +136,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "return [{\n  json: {\n    run_id: $json.run_id,\n    status: 'changes_required',\n    summary: 'Reviewer did not approve the generated output',\n    review: $json.review,\n    approved: $json.approved\n  }\n}];"
+				"jsCode": "return [{\n  json: {\n    run_id: $json.run_id,\n    status: 'changes_required',\n    summary: 'Reviewer did not approve the generated output',\n    intent: $('Normalize Input').first().json.intent,\n    review: $json.review,\n    approved: $json.approved\n  }\n}];"
 			},
 			"id": "wa_reject",
 			"name": "Format Rejection",
@@ -145,6 +145,108 @@
 			"position": [
 				1660,
 				420
+			]
+		},
+		{
+			"parameters": {
+				"conditions": {
+					"boolean": [
+						{
+							"value1": "={{ !!$('Normalize Input').first().json.jira_issue_key }}",
+							"value2": true
+						}
+					]
+				}
+			},
+			"id": "wa_jira_gate_success",
+			"name": "Link Jira on Success?",
+			"type": "n8n-nodes-base.if",
+			"typeVersion": 2,
+			"position": [
+				1900,
+				220
+			]
+		},
+		{
+			"parameters": {
+				"method": "POST",
+				"url": "https://n8n-service-hxe8.onrender.com/webhook/jira-task-manager",
+				"sendBody": true,
+				"specifyBody": "json",
+				"jsonBody": "={{ { action: 'link_run', issue_key: $('Normalize Input').first().json.jira_issue_key, run_id: $json.run_id, run_base_url: 'https://multiagent-system-4eze.onrender.com', jira_base_url: $('Normalize Input').first().json.jira_base_url, jira_email: $('Normalize Input').first().json.jira_email, jira_api_token: $('Normalize Input').first().json.jira_api_token } }}",
+				"options": {}
+			},
+			"id": "wa_jira_link_success",
+			"name": "Link Run in Jira (Success)",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.2,
+			"position": [
+				2140,
+				160
+			]
+		},
+		{
+			"parameters": {
+				"jsCode": "return [{\n  json: {\n    ...$('Format Success').first().json,\n    jira_link: $json\n  }\n}];"
+			},
+			"id": "wa_success_finalize",
+			"name": "Finalize Success",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				2380,
+				160
+			]
+		},
+		{
+			"parameters": {
+				"conditions": {
+					"boolean": [
+						{
+							"value1": "={{ !!$('Normalize Input').first().json.jira_issue_key }}",
+							"value2": true
+						}
+					]
+				}
+			},
+			"id": "wa_jira_gate_reject",
+			"name": "Link Jira on Rejection?",
+			"type": "n8n-nodes-base.if",
+			"typeVersion": 2,
+			"position": [
+				1900,
+				420
+			]
+		},
+		{
+			"parameters": {
+				"method": "POST",
+				"url": "https://n8n-service-hxe8.onrender.com/webhook/jira-task-manager",
+				"sendBody": true,
+				"specifyBody": "json",
+				"jsonBody": "={{ { action: 'link_run', issue_key: $('Normalize Input').first().json.jira_issue_key, run_id: $json.run_id, run_base_url: 'https://multiagent-system-4eze.onrender.com', jira_base_url: $('Normalize Input').first().json.jira_base_url, jira_email: $('Normalize Input').first().json.jira_email, jira_api_token: $('Normalize Input').first().json.jira_api_token } }}",
+				"options": {}
+			},
+			"id": "wa_jira_link_reject",
+			"name": "Link Run in Jira (Rejection)",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.2,
+			"position": [
+				2140,
+				500
+			]
+		},
+		{
+			"parameters": {
+				"jsCode": "return [{\n  json: {\n    ...$('Format Rejection').first().json,\n    jira_link: $json\n  }\n}];"
+			},
+			"id": "wa_reject_finalize",
+			"name": "Finalize Rejection",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				2380,
+				500
 			]
 		},
 		{
@@ -160,7 +262,7 @@
 			"type": "n8n-nodes-base.respondToWebhook",
 			"typeVersion": 1.3,
 			"position": [
-				2140,
+				2620,
 				320
 			]
 		}
@@ -254,7 +356,7 @@
 			"main": [
 				[
 					{
-						"node": "Respond",
+						"node": "Link Jira on Success?",
 						"type": "main",
 						"index": 0
 					}
@@ -262,6 +364,86 @@
 			]
 		},
 		"Format Rejection": {
+			"main": [
+				[
+					{
+						"node": "Link Jira on Rejection?",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Link Jira on Success?": {
+			"main": [
+				[
+					{
+						"node": "Link Run in Jira (Success)",
+						"type": "main",
+						"index": 0
+					}
+				],
+				[
+					{
+						"node": "Respond",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Link Run in Jira (Success)": {
+			"main": [
+				[
+					{
+						"node": "Finalize Success",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Finalize Success": {
+			"main": [
+				[
+					{
+						"node": "Respond",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Link Jira on Rejection?": {
+			"main": [
+				[
+					{
+						"node": "Link Run in Jira (Rejection)",
+						"type": "main",
+						"index": 0
+					}
+				],
+				[
+					{
+						"node": "Respond",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Link Run in Jira (Rejection)": {
+			"main": [
+				[
+					{
+						"node": "Finalize Rejection",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Finalize Rejection": {
 			"main": [
 				[
 					{

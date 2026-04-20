@@ -1,0 +1,77 @@
+{
+  "name": "Meta Webhook Verify",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "meta-webhook",
+        "responseMode": "responseNode"
+      },
+      "id": "meta_verify_webhook",
+      "name": "Meta Verify Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        260,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = $json.query || {};\nconst mode = String(query['hub.mode'] || query.mode || '').trim();\nconst token = String(query['hub.verify_token'] || query.verify_token || '').trim();\nconst challenge = String(query['hub.challenge'] || query.challenge || '').trim();\nconst expected = String($env.META_VERIFY_TOKEN || '').trim();\n\nconst ok = mode === 'subscribe' && !!challenge && !!expected && token === expected;\n\nreturn [{\n  json: {\n    statusCode: ok ? 200 : 403,\n    body: ok ? challenge : 'forbidden',\n    ok,\n    mode,\n    hasChallenge: !!challenge\n  }\n}];"
+      },
+      "id": "meta_verify_logic",
+      "name": "Validate Meta Challenge",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "meta_verify_response",
+      "name": "Respond Challenge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        780,
+        280
+      ]
+    }
+  ],
+  "connections": {
+    "Meta Verify Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Meta Challenge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Meta Challenge": {
+      "main": [
+        [
+          {
+            "node": "Respond Challenge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1"
+}
