@@ -1,0 +1,34 @@
+{
+  "name": "WhatsApp Message Templates Registry",
+  "meta": {
+    "provider": "Meta Cloud API",
+    "status": "approved_templates_ready",
+    "last_review": "2026-04-20"
+  },
+  "templates": [
+    {
+      "name": "task_status_update_v1",
+      "language": "es",
+      "category": "UTILITY",
+      "status": "APPROVED",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Estado de tu solicitud: {{1}}. Run: {{2}}. PR: {{3}}. Deploy: {{4}}"
+        }
+      ]
+    },
+    {
+      "name": "task_changes_required_v1",
+      "language": "es",
+      "category": "UTILITY",
+      "status": "APPROVED",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Tu solicitud requiere cambios. Run: {{1}}. Detalle: {{2}}"
+        }
+      ]
+    }
+  ]
+}

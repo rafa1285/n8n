@@ -9,6 +9,9 @@ This folder contains starter workflows for your multi-agent orchestration.
 - `developer.json`: Developer + Reviewer + conditional Deployer chain
 - `mcp.json`: MCP bridge workflow that routes `planner`, `full_pipeline`, and `ping` actions
 - `mcp-ping.json`: Minimal ping workflow used by the MCP bridge for health checks
+- `jira-task-manager.json`: Webhook-based Jira task manager (create/list/comment/transition/link_run)
+- `whatsapp-message-templates.json`: Registry of Meta-approved WhatsApp templates for outbound status updates
+- `whisper-transcription.json`: Dedicated webhook flow for audio detection and Whisper self-hosted transcription
 
 ## run_id Propagation
 
@@ -48,6 +51,47 @@ Use this to correlate executions with backend state endpoints:
 - `/webhook/planner-entry`
 - `/webhook/developer-review-deploy`
 - `/webhook/mcp-bridge`
+- `/webhook/jira-task-manager`
+- `/webhook/whisper-transcribe`
+
+## Jira Task Manager Workflow
+
+`jira-task-manager.json` expects `POST` payloads with an `action` field and Jira credentials.
+
+Supported actions:
+
+- `create_issue`
+- `list_issues`
+- `add_comment`
+- `transition_issue`
+- `link_run`
+
+Minimal payload example:
+
+```json
+{
+  "action": "create_issue",
+  "jira_base_url": "https://your-company.atlassian.net",
+  "jira_email": "you@company.com",
+  "jira_api_token": "<jira-api-token>",
+  "project_key": "MAS",
+  "summary": "Implement retry in n8n",
+  "description": "Add backoff and stage-level retries in workflows"
+}
+```
+
+## Automatic run_id -> Jira Link (full pipeline)
+
+`whatsapp.json` now auto-links the `run_id` to Jira when the request includes Jira context.
+
+Send these optional fields in `/webhook/whatsapp-intake` or `/webhook/mcp-bridge` with `action=full_pipeline`:
+
+- `jira_issue_key` (or `issue_key`)
+- `jira_base_url`
+- `jira_email`
+- `jira_api_token`
+
+When `jira_issue_key` is present, the workflow calls `jira-task-manager` with `action=link_run` and appends the link result in `jira_link` of the webhook response.
 
 ## Quick Test Payloads
 
@@ -80,6 +124,19 @@ Use this to correlate executions with backend state endpoints:
 - These workflows are intentionally minimal for fast bootstrap.
 - Add retries, error handling, and auth headers before production rollout.
 - Ensure your backend deployment is updated so agent responses include `run_id`.
+
+## WhatsApp Channel Completion
+
+`whatsapp.json` now returns a `whatsapp_response` block in both success and rejection paths:
+
+- `task_status`
+- `pr_url`
+- `deploy_url`
+- `error_message`
+
+This structure is designed for direct forwarding to Meta Cloud API send-message handlers.
+
+`whisper-transcription.json` supports audio-first intake with `WHISPER_BASE_URL` and model marker `whisper-large-v3`.
 
 ## Smoke Tests
 

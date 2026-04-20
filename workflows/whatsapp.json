@@ -123,7 +123,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "return [{\n  json: {\n    run_id: $json.run_id,\n    status: 'approved',\n    summary: 'Pipeline executed successfully',\n    intent: $('Normalize Input').first().json.intent,\n    deployment: $json.deployment,\n    deploymentStatus: $json.status\n  }\n}];"
+				"jsCode": "const deployment = $json.deployment || {};\nconst deploymentUrl = deployment.url || deployment.deploy_url || deployment.service_url || null;\nconst prUrl = deployment.pr_url || deployment.pull_request_url || null;\nconst taskStatus = ($json.status || 'validated') === 'validated' ? 'done' : String($json.status || 'in_progress');\nreturn [{\n  json: {\n    run_id: $json.run_id,\n    status: 'approved',\n    summary: 'Pipeline executed successfully',\n    intent: $('Normalize Input').first().json.intent,\n    deployment,\n    deploymentStatus: $json.status,\n    whatsapp_response: {\n      channel: 'meta_cloud_api',\n      task_status: taskStatus,\n      pr_url: prUrl,\n      deploy_url: deploymentUrl,\n      error_message: null\n    }\n  }\n}];"
 			},
 			"id": "wa_success",
 			"name": "Format Success",
@@ -136,7 +136,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "return [{\n  json: {\n    run_id: $json.run_id,\n    status: 'changes_required',\n    summary: 'Reviewer did not approve the generated output',\n    intent: $('Normalize Input').first().json.intent,\n    review: $json.review,\n    approved: $json.approved\n  }\n}];"
+				"jsCode": "const review = $json.review || {};\nconst findings = Array.isArray(review.findings) ? review.findings : [];\nconst errorMessage = findings.length ? findings.join(' | ') : 'Reviewer did not approve the generated output';\nreturn [{\n  json: {\n    run_id: $json.run_id,\n    status: 'changes_required',\n    summary: 'Reviewer did not approve the generated output',\n    intent: $('Normalize Input').first().json.intent,\n    review,\n    approved: $json.approved,\n    whatsapp_response: {\n      channel: 'meta_cloud_api',\n      task_status: 'changes_required',\n      pr_url: null,\n      deploy_url: null,\n      error_message: errorMessage\n    }\n  }\n}];"
 			},
 			"id": "wa_reject",
 			"name": "Format Rejection",

@@ -1,0 +1,118 @@
+{
+  "name": "WhatsApp Audio Whisper Transcription",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whisper-transcribe",
+        "responseMode": "responseNode"
+      },
+      "id": "whisper_webhook",
+      "name": "Whisper Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body ?? $json;\nconst msg = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0] ?? {};\nconst audioId = msg?.audio?.id ?? body?.audio_id ?? '';\nconst mediaUrl = body?.media_url ?? '';\nconst messageType = msg?.type ?? (audioId ? 'audio' : 'text');\nconst isAudioMessage = messageType === 'audio';\nreturn [{ json: { raw: body, audio_id: audioId, media_url: mediaUrl, message_type: messageType, isAudioMessage } }];"
+      },
+      "id": "whisper_detect",
+      "name": "Detect Audio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 220]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.isAudioMessage }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "whisper_is_audio",
+      "name": "Is Audio?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [700, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WHISPER_BASE_URL + '/transcribe' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { audio_id: $json.audio_id, media_url: $json.media_url, source: 'whatsapp', whisper_model: 'whisper-large-v3' } }}",
+        "options": {}
+      },
+      "id": "whisper_call",
+      "name": "Call Whisper Self-Hosted",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [940, 140]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { transcription: $json.text ?? $json.transcription ?? '', provider: 'whisper-self-hosted', whisper_model: 'whisper-large-v3' } }];"
+      },
+      "id": "whisper_format",
+      "name": "Format Whisper Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1180, 140]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { transcription: '', provider: 'whisper-self-hosted', skipped: true, reason: 'not_audio_message' } }];"
+      },
+      "id": "whisper_skip",
+      "name": "Skip Non Audio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [940, 320]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "whisper_response",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.3,
+      "position": [1420, 220]
+    }
+  ],
+  "connections": {
+    "Whisper Webhook": {
+      "main": [[{ "node": "Detect Audio", "type": "main", "index": 0 }]]
+    },
+    "Detect Audio": {
+      "main": [[{ "node": "Is Audio?", "type": "main", "index": 0 }]]
+    },
+    "Is Audio?": {
+      "main": [
+        [{ "node": "Call Whisper Self-Hosted", "type": "main", "index": 0 }],
+        [{ "node": "Skip Non Audio", "type": "main", "index": 0 }]
+      ]
+    },
+    "Call Whisper Self-Hosted": {
+      "main": [[{ "node": "Format Whisper Result", "type": "main", "index": 0 }]]
+    },
+    "Format Whisper Result": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    },
+    "Skip Non Audio": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {},
+  "pinData": {}
+}
