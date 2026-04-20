@@ -38,12 +38,13 @@ Use this to correlate executions with backend state endpoints:
 
 1. Incoming event enters one of the webhook nodes in n8n.
 2. n8n sends HTTP requests to your multiagent API using `MULTIAGENT_API_BASE_URL`.
-3. Agent chain expected by the workflows:
+3. If your backend enforces API-key auth, set `MULTIAGENT_API_KEY` in n8n so the workflows forward `X-API-Key` automatically.
+4. Agent chain expected by the workflows:
   - `POST /agents/planner`
   - `POST /agents/developer`
   - `POST /agents/reviewer`
   - `POST /agents/deployer`
-4. n8n returns a JSON response to the webhook caller.
+5. n8n returns a JSON response to the webhook caller.
 
 ## Suggested Webhook Paths
 
@@ -122,7 +123,7 @@ When `jira_issue_key` is present, the workflow calls `jira-task-manager` with `a
 ## Notes
 
 - These workflows are intentionally minimal for fast bootstrap.
-- Add retries, error handling, and auth headers before production rollout.
+- Add retries and richer error handling before production rollout.
 - Ensure your backend deployment is updated so agent responses include `run_id`.
 
 ## WhatsApp Channel Completion

@@ -33,6 +33,15 @@
 			"parameters": {
 				"method": "POST",
 				"url": "https://multiagent-system-4eze.onrender.com/agents/planner",
+				"sendHeaders": true,
+				"headerParameters": {
+					"parameters": [
+						{
+							"name": "X-API-Key",
+							"value": "={{ $env.MULTIAGENT_API_KEY }}"
+						}
+					]
+				},
 				"sendBody": true,
 				"specifyBody": "json",
 				"jsonBody": "={{ { task: $json.task, run_id: $json.run_id } }}",

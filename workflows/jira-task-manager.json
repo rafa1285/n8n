@@ -1,0 +1,208 @@
+{
+  "name": "Jira Task Manager",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "jira-task-manager",
+        "responseMode": "responseNode"
+      },
+      "id": "jira_webhook",
+      "name": "Jira Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $json ?? {};\nconst body = root.body ?? root;\nconst action = String(body.action ?? '').toLowerCase().trim();\n\nconst jiraBaseUrl = String(body.jira_base_url ?? body.jira?.base_url ?? '').trim().replace(/\\/$/, '');\nconst jiraEmail = String(body.jira_email ?? body.jira?.email ?? '').trim();\nconst jiraToken = String(body.jira_api_token ?? body.jira?.api_token ?? '').trim();\n\nconst doc = (text) => ({\n  type: 'doc',\n  version: 1,\n  content: [{ type: 'paragraph', content: [{ type: 'text', text: String(text ?? '') }] }]\n});\n\nlet requestUrl = '';\nlet requestBody = {};\nlet resolvedAction = 'ready';\n\nif (!jiraBaseUrl || !jiraEmail || !jiraToken) {\n  resolvedAction = 'invalid_credentials';\n} else if (action === 'create_issue') {\n  const projectKey = body.project_key ?? body.projectKey ?? '';\n  requestUrl = `${jiraBaseUrl}/rest/api/3/issue`;\n  requestBody = {\n    fields: {\n      project: { key: projectKey },\n      summary: body.summary ?? 'Untitled issue',\n      description: doc(body.description ?? ''),\n      issuetype: { name: body.issue_type ?? 'Task' },\n      ...(body.labels ? { labels: body.labels } : {}),\n      ...(body.parent_key ? { parent: { key: body.parent_key } } : {})\n    }\n  };\n} else if (action === 'list_issues') {\n  const projectKey = body.project_key ?? body.projectKey ?? '';\n  requestUrl = `${jiraBaseUrl}/rest/api/3/search`;\n  requestBody = {\n    jql: body.jql ?? (projectKey ? `project=${projectKey} ORDER BY created DESC` : 'ORDER BY created DESC'),\n    maxResults: Number(body.limit ?? 20),\n    fields: ['summary', 'status', 'issuetype', 'priority', 'assignee', 'created', 'updated']\n  };\n} else if (action === 'add_comment') {\n  const issueKey = body.issue_key ?? body.issueKey ?? '';\n  requestUrl = `${jiraBaseUrl}/rest/api/3/issue/${issueKey}/comment`;\n  requestBody = { body: doc(body.comment ?? '') };\n} else if (action === 'transition_issue') {\n  const issueKey = body.issue_key ?? body.issueKey ?? '';\n  requestUrl = `${jiraBaseUrl}/rest/api/3/issue/${issueKey}/transitions`;\n  requestBody = { transition: { id: String(body.transition_id ?? body.transitionId ?? '') } };\n} else if (action === 'link_run') {\n  const issueKey = body.issue_key ?? body.issueKey ?? '';\n  const runId = body.run_id ?? body.runId ?? '';\n  const runBase = String(body.run_base_url ?? '').replace(/\\/$/, '');\n  const runUrl = runBase && runId ? `${runBase}/runs/${runId}` : '';\n  requestUrl = `${jiraBaseUrl}/rest/api/3/issue/${issueKey}/comment`;\n  requestBody = { body: doc(`Linked run_id: ${runId}${runUrl ? `\\nRun URL: ${runUrl}` : ''}`) };\n} else {\n  resolvedAction = 'unsupported_action';\n}\n\nconst authHeader = 'Basic ' + Buffer.from(`${jiraEmail}:${jiraToken}`).toString('base64');\n\nreturn [{\n  json: {\n    action,\n    resolvedAction,\n    shouldCallJira: resolvedAction === 'ready',\n    requestUrl,\n    requestBody,\n    authHeader\n  }\n}];"
+      },
+      "id": "jira_normalize",
+      "name": "Normalize Jira Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        470,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.resolvedAction }}",
+              "value2": "ready"
+            }
+          ]
+        }
+      },
+      "id": "jira_supported",
+      "name": "Supported Action?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.requestUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.authHeader }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.requestBody }}",
+        "options": {}
+      },
+      "id": "jira_call",
+      "name": "Call Jira API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        940,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    status: 'ok',\n    action: $('Normalize Jira Request').first().json.action,\n    result: $json\n  }\n}];"
+      },
+      "id": "jira_success",
+      "name": "Format Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1170,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    status: 'error',\n    action: $json.action,\n    resolvedAction: $json.resolvedAction,\n    message: 'Unsupported action or missing Jira credentials in payload'\n  }\n}];"
+      },
+      "id": "jira_error",
+      "name": "Format Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        940,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "jira_respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.3,
+      "position": [
+        1400,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Jira Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Jira Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Jira Request": {
+      "main": [
+        [
+          {
+            "node": "Supported Action?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supported Action?": {
+      "main": [
+        [
+          {
+            "node": "Call Jira API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Jira API": {
+      "main": [
+        [
+          {
+            "node": "Format Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Success": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "pinData": {}
+}
