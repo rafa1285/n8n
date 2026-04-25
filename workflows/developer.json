@@ -18,7 +18,7 @@
 		},
 		{
 			"parameters": {
-				"jsCode": "const body = $json.body ?? $json;\nconst runId = body.run_id ?? body.runId ?? body.plan?.run_id ?? body.plan?.runId ?? `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nconst multiagentApiKey = String(body.multiagent_api_key ?? body.api_key ?? '').trim();\nreturn [{ json: { plan: body.plan ?? body, run_id: runId, multiagent_api_key: multiagentApiKey } }];"
+				"jsCode": "const body = $json.body ?? $json;\nconst runId = body.run_id ?? body.runId ?? body.plan?.run_id ?? body.plan?.runId ?? `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;\nconst multiagentApiKey = String(body.multiagent_api_key ?? body.api_key ?? '').trim();\nconst jiraIssueKey = String(body.jira_issue_key ?? body.issue_key ?? '').trim();\nconst jiraBaseUrl = String(body.jira_base_url ?? body.jira?.base_url ?? '').trim();\nconst jiraEmail = String(body.jira_email ?? body.jira?.email ?? '').trim();\nconst jiraApiToken = String(body.jira_api_token ?? body.jira?.api_token ?? '').trim();\nreturn [{ json: { plan: body.plan ?? body, run_id: runId, multiagent_api_key: multiagentApiKey, jira_issue_key: jiraIssueKey, jira_base_url: jiraBaseUrl, jira_email: jiraEmail, jira_api_token: jiraApiToken } }];"
 			},
 			"id": "drd_normalize",
 			"name": "Normalize Plan",
@@ -124,7 +124,7 @@
 				},
 				"sendBody": true,
 				"specifyBody": "json",
-				"jsonBody": "={{ { review: $json.review, run_id: $json.run_id } }}",
+				"jsonBody": "={{ { review: $json.review, run_id: $json.run_id, jira_issue_key: $('Normalize Plan').first().json.jira_issue_key, jira_base_url: $('Normalize Plan').first().json.jira_base_url, jira_email: $('Normalize Plan').first().json.jira_email, jira_api_token: $('Normalize Plan').first().json.jira_api_token } }}",
 				"options": {}
 			},
 			"id": "drd_deployer",

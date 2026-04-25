@@ -151,7 +151,7 @@
 				},
 				"sendBody": true,
 				"specifyBody": "json",
-				"jsonBody": "={{ { review: $json.review, run_id: $json.run_id } }}",
+				"jsonBody": "={{ { review: $json.review, run_id: $json.run_id, jira_issue_key: $('Normalize Input').first().json.jira_issue_key, jira_base_url: $('Normalize Input').first().json.jira_base_url, jira_email: $('Normalize Input').first().json.jira_email, jira_api_token: $('Normalize Input').first().json.jira_api_token } }}",
 				"options": {}
 			},
 			"id": "wa_deployer",
